@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run tests
+        run: python -m pytest
+      - name: CLI smoke test (reproducible run on the bundled sample)
+        run: PYTHONPATH=src python -m ndvi_monitor.cli --sample --out output
+      - name: Upload demo outputs
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sample-run-outputs
+          path: output/
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t ndvi-monitor:ci .
+      - name: Container health check
+        run: |
+          docker run -d --name ndvi -p 8000:8000 ndvi-monitor:ci
+          for i in $(seq 1 20); do curl -sf http://localhost:8000/health && break || sleep 1; done
+          curl -sf -X POST http://localhost:8000/api/analyze/sample | grep -q decline_flagged
+          docker rm -f ndvi

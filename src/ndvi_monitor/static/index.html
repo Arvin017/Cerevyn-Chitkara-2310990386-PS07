@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NDVI Vegetation Change Monitor</title>
+<style>
+  :root { --bg:#fafaf7; --fg:#1d2420; --muted:#5d675f; --card:#fff; --line:#dfe3dc; --accent:#2f6b3f; --warn:#a63d2f; --ok:#2f6b3f; --amber:#9a6b00; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#141815; --fg:#e8ece6; --muted:#9aa59c; --card:#1d231f; --line:#2f3832; --accent:#6fbf86; --warn:#e57c6c; --ok:#6fbf86; --amber:#e0b04a; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, sans-serif; }
+  main { max-width:960px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:22px; margin:0 0 4px; } p.sub { color:var(--muted); margin:0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  .row { display:flex; flex-wrap:wrap; gap:14px; align-items:end; }
+  label { display:flex; flex-direction:column; font-size:13px; color:var(--muted); gap:4px; }
+  input[type=number] { width:110px; padding:6px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); }
+  button { padding:8px 14px; border:0; border-radius:6px; background:var(--accent); color:#fff; font-weight:600; cursor:pointer; }
+  button.secondary { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  table { border-collapse:collapse; width:100%; font-size:14px; } td,th { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); }
+  #status { font-weight:700; } .decline_flagged { color:var(--warn); } .no_significant_decline { color:var(--ok); } .insufficient_data { color:var(--amber); }
+  img { max-width:100%; border:1px solid var(--line); border-radius:8px; } .note { color:var(--muted); font-size:13px; }
+  a { color:var(--accent); } #err { color:var(--warn); font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>NDVI Vegetation Change Monitor</h1>
+  <p class="sub">Compares NDVI for a farm area across two dates, using only farm pixels that are valid on both dates.</p>
+
+  <section class="card">
+    <div class="row">
+      <label>Mean decline threshold<input id="mt" type="number" step="0.01" min="0.01" max="2" value="0.05"></label>
+      <label>Pixel decline threshold<input id="pt" type="number" step="0.01" min="0.01" max="2" value="0.10"></label>
+      <label>Min usable % of farm<input id="mu" type="number" step="1" min="0" max="100" value="50"></label>
+      <button id="runSample">Run on bundled sample</button>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <label>Or upload a scene (.npz)<input id="file" type="file" accept=".npz"></label>
+      <button id="runUpload" class="secondary">Run on uploaded file</button>
+    </div>
+    <p id="err"></p>
+  </section>
+
+  <section id="out" class="card" hidden>
+    <div id="status"></div>
+    <p id="msg"></p>
+    <table id="tbl"></table>
+    <p><img id="heat" alt="NDVI heatmaps for both dates and the change map"></p>
+    <p id="dl"></p>
+    <p class="note" id="note"></p>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const qs = () => new URLSearchParams({
+  mean_decline_threshold: $("mt").value, pixel_decline_threshold: $("pt").value, min_usable_pct: $("mu").value });
+
+async function run(url, body) {
+  $("err").textContent = "";
+  const res = await fetch(url + "?" + qs(), { method: "POST", body });
+  const data = await res.json();
+  if (!res.ok) { $("err").textContent = typeof data.detail === "string" ? data.detail : "Invalid input: " + JSON.stringify(data.detail); return; }
+  render(data);
+}
+
+function render(d) {
+  $("out").hidden = false;
+  const s = $("status"); s.textContent = d.decision.status.replace(/_/g, " ").toUpperCase(); s.className = d.decision.status;
+  $("msg").textContent = d.decision.message;
+  const c = d.comparison, f = (v) => (v === null || v === undefined ? "n/a" : v);
+  const rows = [
+    ["Scene origin", d.scene.origin],
+    ["Farm pixels", d.scene.farm_pixels],
+    [d.date_1.label + ": usable pixels", `${d.date_1.usable_pixels} (${f(d.date_1.usable_pct_of_farm)}%)`],
+    [d.date_2.label + ": usable pixels", `${d.date_2.usable_pixels} (${f(d.date_2.usable_pct_of_farm)}%)`],
+    ["Common usable pixels", `${c.common_pixels} (${f(c.common_pct_of_farm)}% of farm)`],
+    ["Mean NDVI, date 1 (common pixels)", f(c.mean_ndvi_date_1)],
+    ["Mean NDVI, date 2 (common pixels)", f(c.mean_ndvi_date_2)],
+    ["Mean change", f(c.mean_change)],
+    ["Declined pixels", `${f(c.declined_pixels)} (${f(c.declined_pct_of_common)}% of common)`],
+    ["Excluded on date 1 (farm)", JSON.stringify(d.date_1.excluded_farm_pixels)],
+    ["Excluded on date 2 (farm)", JSON.stringify(d.date_2.excluded_farm_pixels)],
+    ["Run id (reproducible)", d.run_id],
+  ];
+  const t = $("tbl"); t.replaceChildren();
+  for (const [k, v] of rows) { const tr = t.insertRow(); tr.insertCell().textContent = k; tr.insertCell().textContent = v; }
+  $("heat").src = d.downloads.heatmap + "?t=" + Date.now();
+  const dl = $("dl"); dl.replaceChildren(document.createTextNode("Download: "));
+  for (const [k, label] of [["results", "results.json"], ["pixels", "pixels.csv"], ["heatmap", "heatmap.png"]]) {
+    const a = document.createElement("a"); a.href = d.downloads[k]; a.textContent = label; a.download = label;
+    dl.append(a, " ");
+  }
+  $("note").textContent = d.interpretation_note;
+}
+
+$("runSample").onclick = () => run("/api/analyze/sample");
+$("runUpload").onclick = () => {
+  const f = $("file").files[0];
+  if (!f) { $("err").textContent = "Choose a .npz file first."; return; }
+  const fd = new FormData(); fd.append("file", f); run("/api/analyze/upload", fd);
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "_comment": "Derived BY HAND from sample_data/generate_sample_data.py, not copied from program output. See sample_data/README.md.",
+  "farm_pixels": 100,
+  "date_1": {"usable_pixels": 95, "usable_pct_of_farm": 95.0, "mean_ndvi_on_usable": 0.8,
+             "excluded_farm_pixels": {"masked": 4, "non_finite": 0, "zero_denominator": 1, "out_of_range": 0}},
+  "date_2": {"usable_pixels": 94, "usable_pct_of_farm": 94.0, "mean_ndvi_on_usable": 0.720213,
+             "excluded_farm_pixels": {"masked": 6, "non_finite": 0, "zero_denominator": 0, "out_of_range": 0}},
+  "comparison": {"common_pixels": 89, "common_pct_of_farm": 89.0,
+                 "mean_ndvi_date_1": 0.8, "mean_ndvi_date_2": 0.71573, "mean_change": -0.08427,
+                 "declined_pixels": 25, "declined_pct_of_common": 28.08989,
+                 "improved_pixels": 0, "unchanged_pixels": 64,
+                 "min_change": -0.3, "max_change": 0.0},
+  "decision_status_default_config": "decline_flagged"
+}
