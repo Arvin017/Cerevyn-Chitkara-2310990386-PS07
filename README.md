@@ -7,9 +7,9 @@
 | **Roll number** | 2310990386 |
 | **Branch** | Computer Science Engineering (Chitkara University), batch of 2027 |
 | **Role applied** | Software Development Trainee |
-| **Evaluated commit / tag** | `<COMMIT_HASH>` |
-| **CI run** | `<GITHUB_ACTIONS_RUN_URL>` |
-| **Demo recording** | `<DEMO_LINK>` |
+| **Evaluated commit / tag** | `v1.0` |
+| **CI run** | https://github.com/Arvin017/Cerevyn-Chitkara-2310990386-PS07/actions/runs/38450985147 |
+| **Demo recording** | https://drive.google.com/file/d/1nXRcse7-RGKECmNVzyEJ_6w_pMQ8CEUf/view?usp=sharing |
 
 ## Problem
 
@@ -123,8 +123,7 @@ python -m ndvi_monitor.cli --input bad.npz       # error: ... arrays must all sh
 * **Limitations:** synthetic data only; NDVI only (no EVI/SAVI); the scene must already be co-registered (no reprojection, resampling or georeferencing);
   validity masks are supplied, not derived from a cloud algorithm; no seasonal normalisation, so a lower NDVI may be normal phenology;
   at most 1 M pixels per scene; results are stored on local disk (Azure Blob in the plan); the API has no authentication.
-* **Verification status:** the 36 tests pass locally and the API was smoke-tested with `uvicorn` and `curl`. The Docker image and GitHub Actions workflow
-  were written but **not run in the environment where this code was produced**; run them and put the CI link above.
+* **Verification status:** the 36 tests pass locally and in GitHub Actions (Python 3.11 and 3.12), and the Docker image builds and passes its health check in CI (run linked above).
 * **Azure:** `docs/azure-plan.md` is a design only; nothing is deployed.
 
 ## Repository layout
